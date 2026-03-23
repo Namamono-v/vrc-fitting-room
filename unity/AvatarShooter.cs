@@ -663,7 +663,8 @@ namespace AvatarFittingRoom
         }
         [System.Serializable] class CatalogOutfit
         {
-            public string id = "", name = "", boothUrl = "", genre = "", thumbnailUrl = "", contributor = "";
+            public string id = "", name = "", boothUrl = "", genre = "", thumbnailUrl = "";
+            public List<string> contributors = new List<string>();
         }
 
         void RegisterToCatalog(List<string> avatarNames)
@@ -707,7 +708,9 @@ namespace AvatarFittingRoom
                     outfit.name = label;
                     outfit.boothUrl = uploadOutfitUrls.ContainsKey(label) ? uploadOutfitUrls[label] : "";
                     outfit.thumbnailUrl = $"/thumbnails/outfits/{outfitId}.jpg";
-                    outfit.contributor = contributor;
+                    // 提供者: 重複しなければ追加（最初の人がメイン表示）
+                    if (!outfit.contributors.Contains(contributor))
+                        outfit.contributors.Add(contributor);
 
                     // メタからジャンル取得
                     var metaPath = Path.Combine(outputFolder, avatarId, "meta.json");

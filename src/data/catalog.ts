@@ -15,6 +15,7 @@ interface CatalogJson {
       thumbnailUrl: string;
       creator?: string;
       price?: string;
+      contributors?: string[];
     }>;
     supportedOutfitIds?: string[];
   }>;
@@ -54,6 +55,7 @@ function mergeCatalog(base: Catalog, json: CatalogJson): Catalog {
               price: jsonOutfit.price ?? "",
               genre: jsonOutfit.genre ?? ("カジュアル" as OutfitGenre),
               thumbnailUrl: jsonOutfit.thumbnailUrl,
+              contributors: jsonOutfit.contributors,
             });
           }
         }
@@ -77,6 +79,7 @@ function mergeCatalog(base: Catalog, json: CatalogJson): Catalog {
           price: o.price ?? "",
           genre: o.genre ?? ("カジュアル" as OutfitGenre),
           thumbnailUrl: o.thumbnailUrl,
+          contributors: o.contributors,
         })),
         supportedOutfitIds: jsonAvatar.supportedOutfitIds,
       };
