@@ -1,6 +1,7 @@
 interface Props {
   url: string;
   price?: string;
+  label?: string;
 }
 
 function isSafeUrl(url: string): boolean {
@@ -10,7 +11,7 @@ function isSafeUrl(url: string): boolean {
   } catch { return false; }
 }
 
-export function BoothButton({ url, price }: Props) {
+export function BoothButton({ url, price, label }: Props) {
   const safeUrl = isSafeUrl(url) ? url : "#";
   return (
     <a
@@ -24,7 +25,7 @@ export function BoothButton({ url, price }: Props) {
         transition-all shadow-md shadow-pink-300/30 w-full justify-center
       "
     >
-      <span>Boothで見る</span>
+      <span>{label ?? "Boothで見る"}</span>
       {price && <span className="opacity-90">{price}</span>}
     </a>
   );

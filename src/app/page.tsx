@@ -5,6 +5,7 @@ import { useFittingRoom } from "@/hooks/useFittingRoom";
 import { PreviewArea } from "@/components/PreviewArea";
 import { PoseSelector } from "@/components/PoseSelector";
 import { OutfitList } from "@/components/OutfitList";
+import { BoothButton } from "@/components/BoothButton";
 
 export default function Home() {
   const room = useFittingRoom(catalog);
@@ -56,6 +57,11 @@ export default function Home() {
             activeId={room.poseId}
             onSelect={room.setPoseId}
           />
+          {room.avatar.boothUrl && (
+            <div className="mt-2">
+              <BoothButton url={room.avatar.boothUrl} label={`${room.avatar.name} をBoothで見る`} />
+            </div>
+          )}
         </div>
 
         {/* 右: 衣装一覧（ジャンルフィルター + 縦スクロール） */}
