@@ -804,7 +804,12 @@ namespace AvatarFittingRoom
             {
                 var winPath = outputFolder.Replace("/", "\\");
                 if (Directory.Exists(winPath))
-                    System.Diagnostics.Process.Start("explorer.exe", winPath);
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{winPath}\"",
+                        UseShellExecute = false
+                    });
             }
         }
 
@@ -1204,7 +1209,14 @@ namespace AvatarFittingRoom
 
         string EscapeJson(string s)
         {
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return s
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t")
+                .Replace("\b", "\\b")
+                .Replace("\f", "\\f");
         }
 
         /// <summary>
@@ -1356,7 +1368,10 @@ namespace AvatarFittingRoom
         string SanitizeFileName(string name)
         {
             var invalid = Path.GetInvalidFileNameChars();
-            return new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+            var sanitized = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+            sanitized = sanitized.Replace("..", "");
+            if (string.IsNullOrWhiteSpace(sanitized)) sanitized = "unnamed";
+            return sanitized;
         }
     }
 }

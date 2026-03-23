@@ -23,6 +23,23 @@ const CATALOG_PATH = path.join(PROJECT_ROOT, "src", "data", "catalog.ts");
 const THUMBNAILS_DIR = path.join(PROJECT_ROOT, "public", "thumbnails");
 const DELAY_MS = 500;
 
+// Allowed domains for fetching
+const ALLOWED_FETCH_DOMAINS = [
+  "booth.pm",
+  "booth.pximg.net",
+];
+
+function isAllowedUrl(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    return ALLOWED_FETCH_DOMAINS.some(
+      (d) => u.hostname === d || u.hostname.endsWith("." + d)
+    );
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -44,6 +61,9 @@ function sleep(ms) {
  */
 function fetch(url, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
+    if (!isAllowedUrl(url)) {
+      return reject(new Error(`Blocked: ${url} is not in the allowed domain list`));
+    }
     if (maxRedirects < 0) {
       return reject(new Error("Too many redirects"));
     }

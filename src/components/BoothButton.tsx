@@ -3,10 +3,18 @@ interface Props {
   price?: string;
 }
 
+function isSafeUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch { return false; }
+}
+
 export function BoothButton({ url, price }: Props) {
+  const safeUrl = isSafeUrl(url) ? url : "#";
   return (
     <a
-      href={url}
+      href={safeUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="
