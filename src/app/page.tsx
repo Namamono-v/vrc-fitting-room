@@ -23,14 +23,29 @@ function mergeCatalogs(base: Catalog, supabaseAvatars: Avatar[]): Catalog {
   for (const sbAvatar of supabaseAvatars) {
     const existing = avatarMap.get(sbAvatar.id);
     if (existing) {
-      // 既存アバター: Supabase の outfits でマージ（同じIDは上書き、新規は追加）
+      // 既存アバター: Supabase の outfits でマージ
       for (const outfit of sbAvatar.outfits) {
-        const idx = existing.outfits.findIndex((o) => o.id === outfit.id);
+        // IDまたはboothUrl（BOOTH商品ID）で同一衣装を検索
+        const idx = existing.outfits.findIndex(
+          (o) => o.id === outfit.id || (o.boothUrl && outfit.boothUrl && o.boothUrl === outfit.boothUrl)
+        );
         if (idx >= 0) {
           // 既存衣装: Supabaseデータで上書き（contributors等を反映）
-          existing.outfits[idx] = { ...existing.outfits[idx], ...outfit };
+          existing.outfits[idx] = { ...existing.outfits[idx], ...outfit, id: existing.outfits[idx].id };
         } else {
           existing.outfits.push(outfit);
+        }
+      }
+      // Supabaseから来た衣装をsupportedOutfitIdsに追加
+      if (existing.supportedOutfitIds) {
+        for (const outfit of sbAvatar.outfits) {
+          const matchedOutfit = existing.outfits.find(
+            (o) => o.boothUrl && outfit.boothUrl && o.boothUrl === outfit.boothUrl
+          );
+          const idToAdd = matchedOutfit?.id ?? outfit.id;
+          if (!existing.supportedOutfitIds.includes(idToAdd)) {
+            existing.supportedOutfitIds.push(idToAdd);
+          }
         }
       }
       // supportedOutfitIds: Supabase にあれば上書き
