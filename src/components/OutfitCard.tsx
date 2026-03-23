@@ -51,12 +51,18 @@ export function OutfitCard({ outfit, isSelected, onSelect }: Props) {
       <div className="p-2">
         <p className="text-xs font-medium text-gray-600 leading-tight line-clamp-2">{outfit.name}</p>
         <p className="text-[10px] text-pink-400 font-medium mt-0.5">{outfit.price}</p>
-        {outfit.contributors && outfit.contributors.length > 0 && (
-          <p className="text-[9px] text-gray-400 mt-0.5">
-            提供: {outfit.contributors[0]}
-            {outfit.contributors.length > 1 && ` 他${outfit.contributors.length - 1}名`}
-          </p>
-        )}
+        {outfit.contributors && outfit.contributors.length > 0 && (() => {
+          const named = outfit.contributors.filter(c => c !== "匿名");
+          const anonCount = outfit.contributors.length - named.length;
+          const display = named.length > 0 ? named[0] : "匿名";
+          const othersCount = outfit.contributors.length - 1;
+          return (
+            <p className="text-[9px] text-gray-400 mt-0.5">
+              提供: {display}
+              {othersCount > 0 && ` 他${othersCount}名`}
+            </p>
+          );
+        })()}
       </div>
     </button>
   );
