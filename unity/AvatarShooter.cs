@@ -764,15 +764,16 @@ namespace AvatarFittingRoom
                         if (!existingContributors.Contains(contributor))
                             existingContributors.Add(contributor);
 
-                        var outfitJson = JsonUtility.ToJson(new SupabaseOutfit
-                        {
-                            avatar_id = avatarId,
-                            outfit_id = outfitId,
-                            name = label,
-                            booth_url = oUrl,
-                            genre = genre,
-                            contributors = existingContributors
-                        });
+                        // PostgREST TEXT[] requires Postgres array format: {"a","b"}
+                        var pgContributors = "{" + string.Join(",", existingContributors.Select(c => "\"" + EscapeJson(c) + "\"")) + "}";
+                        var outfitJson = "{" +
+                            $"\"avatar_id\":\"{EscapeJson(avatarId)}\"," +
+                            $"\"outfit_id\":\"{EscapeJson(outfitId)}\"," +
+                            $"\"name\":\"{EscapeJson(label)}\"," +
+                            $"\"booth_url\":\"{EscapeJson(oUrl)}\"," +
+                            $"\"genre\":\"{EscapeJson(genre)}\"," +
+                            $"\"contributors\":\"{EscapeJson(pgContributors)}\"" +
+                        "}";
 
                         var outfitErr = UpsertRow("fitting_outfits", outfitJson);
                         if (outfitErr != null)
