@@ -46,14 +46,19 @@ function mergeCatalogs(base: Catalog, supabaseAvatars: Avatar[]): Catalog {
 
 export default function Home() {
   const [catalog, setCatalog] = useState<Catalog>(staticCatalog);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Client-side: Supabase からデータを取得してマージ
   useEffect(() => {
     let cancelled = false;
-    fetchCatalogFromSupabase().then((result) => {
-      if (cancelled || !result) return;
-      setCatalog((prev) => mergeCatalogs(prev, result.avatars));
-    });
+    fetchCatalogFromSupabase()
+      .then((result) => {
+        if (cancelled || !result) return;
+        setCatalog((prev) => mergeCatalogs(prev, result.avatars));
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -71,6 +76,14 @@ export default function Home() {
         <p className="text-[11px] text-gray-400 mt-0.5">
           アバターを選んで、衣装をクリックしてプレビュー
         </p>
+        {isLoading && (
+          <div className="flex items-center justify-center gap-1.5 mt-1.5">
+            <div className="w-1.5 h-1.5 bg-pink-300 rounded-full animate-bounce [animation-delay:-0.3s]" />
+            <div className="w-1.5 h-1.5 bg-pink-300 rounded-full animate-bounce [animation-delay:-0.15s]" />
+            <div className="w-1.5 h-1.5 bg-pink-300 rounded-full animate-bounce" />
+            <span className="text-[10px] text-pink-300 ml-1">データ読み込み中</span>
+          </div>
+        )}
       </header>
 
       {/* メイン: 3カラム */}
@@ -158,6 +171,18 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* フッター */}
+      <footer className="border-t border-pink-100 bg-pink-50/30 py-4 px-3 mt-auto">
+        <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] text-gray-400">
+          <p>
+            VRChat衣装データベース — 購入前にアバター×衣装の見た目をチェック
+          </p>
+          <p>
+            衣装画像の著作権は各クリエイターに帰属します
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

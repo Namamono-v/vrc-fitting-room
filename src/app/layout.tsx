@@ -12,10 +12,34 @@ export const metadata: Metadata = {
   title: "アバター試着データベース | VRChat衣装プレビュー",
   description:
     "VRChatアバターの衣装データベース。人気アバターの対応衣装をブラウザでプレビュー。購入前にどう見えるかチェックしよう。",
+  keywords: [
+    "VRChat",
+    "アバター",
+    "衣装",
+    "試着",
+    "プレビュー",
+    "Booth",
+    "VRC",
+    "対応衣装",
+    "フィッティング",
+  ],
   openGraph: {
-    title: "アバター試着データベース",
-    description: "VRChatアバターの衣装データベース",
+    title: "アバター試着データベース | VRChat衣装プレビュー",
+    description:
+      "VRChatアバターの衣装データベース。購入前にアバター×衣装の組み合わせをブラウザでプレビュー。",
     type: "website",
+    locale: "ja_JP",
+    siteName: "アバター試着データベース",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "アバター試着データベース | VRChat衣装プレビュー",
+    description:
+      "VRChatアバターの対応衣装をブラウザでプレビュー。購入前にどう見えるかチェック。",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

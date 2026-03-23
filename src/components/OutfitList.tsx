@@ -89,8 +89,33 @@ export function OutfitList({
             />
         ))}
         {outfits.length === 0 && (
-          <div className="col-span-2 text-center py-8 text-gray-300 text-sm">
-            このジャンルの衣装はありません
+          <div className="col-span-2 text-center py-10">
+            <div className="text-3xl mb-2 text-pink-200">
+              {activeGenre !== "all" ? "🔍" : "👗"}
+            </div>
+            <p className="text-sm text-gray-400 font-medium">
+              {activeGenre !== "all"
+                ? "このジャンルの衣装はありません"
+                : showAllOutfits
+                ? "登録されている衣装がありません"
+                : "対応衣装がまだありません"}
+            </p>
+            {activeGenre !== "all" && (
+              <button
+                onClick={() => onGenreSelect("all" as OutfitGenre)}
+                className="mt-2 text-xs text-pink-400 hover:text-pink-500 underline underline-offset-2"
+              >
+                すべてのジャンルを表示
+              </button>
+            )}
+            {!showAllOutfits && activeGenre === "all" && (
+              <button
+                onClick={() => onToggleShowAll(true)}
+                className="mt-2 text-xs text-pink-400 hover:text-pink-500 underline underline-offset-2"
+              >
+                すべての衣装を表示
+              </button>
+            )}
           </div>
         )}
       </div>
