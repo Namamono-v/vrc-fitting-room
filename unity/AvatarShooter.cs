@@ -19,7 +19,7 @@ namespace AvatarFittingRoom
     public class AvatarShooter : EditorWindow
     {
         // ===== 定数 =====
-        static readonly string DEFAULT_OUTPUT = "D:/Desktop/vrc-fitting-room/public/renders";
+        static readonly string DEFAULT_OUTPUT = "renders_output";
         const int IMG_WIDTH = 1024;
         const int IMG_HEIGHT = 1440;
         const float CAM_ORTHO_SIZE = 0.85f;
@@ -75,7 +75,6 @@ namespace AvatarFittingRoom
 
         // アップロード用
         Vector2 uploadScrollPos;
-        string uploadAvatarUrl = "";
         Dictionary<string, string> uploadOutfitUrls = new Dictionary<string, string>();
         string uploadStatus = "";
 
@@ -84,6 +83,8 @@ namespace AvatarFittingRoom
         {
             var w = GetWindow<AvatarShooter>("アバター試着室 撮影");
             w.minSize = new Vector2(420, 500);
+            if (w.outputFolder == DEFAULT_OUTPUT)
+                w.outputFolder = Path.Combine(Application.dataPath, "..", DEFAULT_OUTPUT).Replace("\\", "/");
             w.ScanHierarchy();
             w.ScanPoses();
         }
@@ -411,29 +412,20 @@ namespace AvatarFittingRoom
             {
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField(avName, EditorStyles.boldLabel, GUILayout.Width(150));
+                EditorGUILayout.EndHorizontal();
 
-                // 既存のmeta.jsonからアバターURLを読み込み
-                if (string.IsNullOrEmpty(uploadAvatarUrl))
+                // 撮影タブで入力済みのアバターURLを表示（編集不可）
+                if (!string.IsNullOrWhiteSpace(avatarUrl))
                 {
-                    var metaPath = Path.Combine(outputFolder, SanitizeFileName(avName), "meta.json");
-                    if (File.Exists(metaPath))
-                    {
-                        var json = File.ReadAllText(metaPath);
-                        var match = System.Text.RegularExpressions.Regex.Match(
-                            json, "\"avatarBoothUrl\"\\s*:\\s*\"([^\"]*)\"");
-                        if (match.Success && !string.IsNullOrEmpty(match.Groups[1].Value))
-                            uploadAvatarUrl = match.Groups[1].Value;
-                    }
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("アバターURL", GUILayout.Width(80));
+                    EditorGUILayout.SelectableLabel(avatarUrl, GUILayout.Height(18));
+                    EditorGUILayout.EndHorizontal();
                 }
-                EditorGUILayout.EndHorizontal();
-
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("アバターURL", GUILayout.Width(80));
-                uploadAvatarUrl = EditorGUILayout.TextField(uploadAvatarUrl);
-                EditorGUILayout.EndHorizontal();
-
-                if (string.IsNullOrWhiteSpace(uploadAvatarUrl))
-                    EditorGUILayout.HelpBox("Booth等のアバター販売ページURLを入力", MessageType.None);
+                else
+                {
+                    EditorGUILayout.HelpBox("撮影タブでアバターURLを入力してください", MessageType.Warning);
+                }
             }
 
             EditorGUILayout.Space(8);
@@ -587,7 +579,7 @@ namespace AvatarFittingRoom
                 }
 
                 existing.name = avName;
-                existing.boothUrl = uploadAvatarUrl ?? "";
+                existing.boothUrl = avatarUrl ?? "";
                 existing.thumbnailUrl = $"/renders/{avatarId}/素体.png";
 
                 // 衣装を追加/更新
