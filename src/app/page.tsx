@@ -1,13 +1,64 @@
 "use client";
 
-import { catalog } from "@/data/catalog";
+import { useState, useEffect } from "react";
+import { catalog as staticCatalog } from "@/data/catalog";
+import { fetchCatalogFromSupabase } from "@/lib/supabase";
 import { useFittingRoom } from "@/hooks/useFittingRoom";
 import { PreviewArea } from "@/components/PreviewArea";
 import { PoseSelector } from "@/components/PoseSelector";
 import { OutfitList } from "@/components/OutfitList";
 import { BoothButton } from "@/components/BoothButton";
+import { Avatar, Catalog, Outfit } from "@/types";
+
+/**
+ * 静的カタログと Supabase データをマージする。
+ * - 同じ ID のアバターは outfits をマージ（Supabase 側の outfit を優先追加）
+ * - 新規アバターはそのまま追加
+ * - poses / genres は静的データをそのまま使う
+ */
+function mergeCatalogs(base: Catalog, supabaseAvatars: Avatar[]): Catalog {
+  const merged = { ...base, avatars: [...base.avatars] };
+  const avatarMap = new Map(merged.avatars.map((a) => [a.id, a]));
+
+  for (const sbAvatar of supabaseAvatars) {
+    const existing = avatarMap.get(sbAvatar.id);
+    if (existing) {
+      // 既存アバター: Supabase の outfits で新規分を追加
+      const existingOutfitIds = new Set(existing.outfits.map((o) => o.id));
+      for (const outfit of sbAvatar.outfits) {
+        if (!existingOutfitIds.has(outfit.id)) {
+          existing.outfits.push(outfit);
+        }
+      }
+      // supportedOutfitIds: Supabase にあれば上書き
+      if (sbAvatar.supportedOutfitIds) {
+        existing.supportedOutfitIds = sbAvatar.supportedOutfitIds;
+      }
+    } else {
+      // 新規アバター
+      merged.avatars.push(sbAvatar);
+      avatarMap.set(sbAvatar.id, sbAvatar);
+    }
+  }
+
+  return merged;
+}
 
 export default function Home() {
+  const [catalog, setCatalog] = useState<Catalog>(staticCatalog);
+
+  // Client-side: Supabase からデータを取得してマージ
+  useEffect(() => {
+    let cancelled = false;
+    fetchCatalogFromSupabase().then((result) => {
+      if (cancelled || !result) return;
+      setCatalog((prev) => mergeCatalogs(prev, result.avatars));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const room = useFittingRoom(catalog);
 
   return (

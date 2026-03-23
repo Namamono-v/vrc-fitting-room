@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace AvatarFittingRoom
 {
@@ -24,6 +26,10 @@ namespace AvatarFittingRoom
         const int IMG_HEIGHT = 1440;
         const float CAM_ORTHO_SIZE = 0.85f;
         const float CAM_DISTANCE = 3f;
+
+        // ===== Supabase =====
+        const string SUPABASE_URL = "https://ksotijmuhednzfiahhoo.supabase.co";
+        const string SUPABASE_ANON_KEY = "sb_publishable_IPqD4wfiJzK1PBOZDhLKVA_iqzcfv6y";
 
         static readonly string[] GENRES = {
             "制服", "カジュアル", "メイド", "ゴスロリ", "ワンピース",
@@ -663,10 +669,264 @@ namespace AvatarFittingRoom
         }
         [System.Serializable] class CatalogOutfit
         {
-            public string id = "", name = "", boothUrl = "", genre = "", thumbnailUrl = "", contributor = "";
+            public string id = "", name = "", boothUrl = "", genre = "", thumbnailUrl = "";
+            public List<string> contributors = new List<string>();
         }
 
         void RegisterToCatalog(List<string> avatarNames)
+        {
+            bool supabaseOk = true;
+            int uploadedImages = 0;
+            int totalImages = previews.Count;
+            string contributor = !string.IsNullOrWhiteSpace(contributorName) ? contributorName.Trim() : "匿名";
+
+            try
+            {
+                // ===== Phase 1: Upload render images to Supabase Storage =====
+                for (int i = 0; i < previews.Count; i++)
+                {
+                    var p = previews[i];
+                    if (!File.Exists(p.path)) continue;
+
+                    var avatarId = Sanitize(p.avatarName);
+                    var fileName = Path.GetFileNameWithoutExtension(p.path);
+                    var storagePath = $"renders/{avatarId}/{fileName}";
+
+                    EditorUtility.DisplayProgressBar("Supabaseへアップロード中...",
+                        $"画像 {i + 1}/{totalImages}: {avatarId}/{fileName}.png",
+                        (float)i / totalImages);
+
+                    var imageBytes = File.ReadAllBytes(p.path);
+                    var err = UploadToStorage(storagePath, imageBytes);
+                    if (err != null)
+                    {
+                        Debug.LogWarning($"[Supabase] 画像アップロード失敗: {storagePath} - {err}");
+                        supabaseOk = false;
+                    }
+                    else
+                    {
+                        uploadedImages++;
+                    }
+                }
+
+                // ===== Phase 2: Upsert avatar data =====
+                foreach (var avName in avatarNames)
+                {
+                    var avatarId = Sanitize(avName);
+
+                    EditorUtility.DisplayProgressBar("Supabaseへアップロード中...",
+                        $"アバター登録: {avName}", 0.8f);
+
+                    var thumbnailUrl = $"/thumbnails/avatars/{ExtractBoothId(avatarUrl)}.jpg";
+                    var avatarJson = JsonUtility.ToJson(new SupabaseAvatar
+                    {
+                        id = avatarId,
+                        name = avName,
+                        booth_url = avatarUrl ?? "",
+                        thumbnail_url = thumbnailUrl
+                    });
+
+                    var err = UpsertRow("fitting_avatars", avatarJson);
+                    if (err != null)
+                    {
+                        Debug.LogWarning($"[Supabase] アバター登録失敗: {avatarId} - {err}");
+                        supabaseOk = false;
+                    }
+
+                    // ===== Phase 3: Upsert outfit data =====
+                    var outfitLabels = previews.Where(p => p.avatarName == avName && p.label != "素体")
+                        .Select(p => p.label).Distinct();
+
+                    foreach (var label in outfitLabels)
+                    {
+                        var outfitId = Sanitize(label);
+
+                        EditorUtility.DisplayProgressBar("Supabaseへアップロード中...",
+                            $"衣装登録: {label}", 0.9f);
+
+                        string genre = "";
+                        var metaPath = Path.Combine(outputFolder, avatarId, "meta.json");
+                        if (File.Exists(metaPath))
+                        {
+                            try
+                            {
+                                var meta = JsonUtility.FromJson<MetaJson>(File.ReadAllText(metaPath));
+                                var shot = meta.shots.FirstOrDefault(s => s.id == outfitId);
+                                if (shot != null) genre = shot.genre;
+                            }
+                            catch { }
+                        }
+
+                        string oUrl = uploadOutfitUrls.ContainsKey(label) ? uploadOutfitUrls[label] : "";
+
+                        // Fetch existing record to merge contributors
+                        var existingContributors = FetchExistingContributors(avatarId, outfitId);
+                        if (!existingContributors.Contains(contributor))
+                            existingContributors.Add(contributor);
+
+                        var outfitJson = JsonUtility.ToJson(new SupabaseOutfit
+                        {
+                            avatar_id = avatarId,
+                            outfit_id = outfitId,
+                            name = label,
+                            booth_url = oUrl,
+                            genre = genre,
+                            contributors = existingContributors
+                        });
+
+                        var outfitErr = UpsertRow("fitting_outfits", outfitJson);
+                        if (outfitErr != null)
+                        {
+                            Debug.LogWarning($"[Supabase] 衣装登録失敗: {outfitId} - {outfitErr}");
+                            supabaseOk = false;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
+
+            if (supabaseOk)
+            {
+                Debug.Log($"[Supabase] アップロード完了: 画像{uploadedImages}枚");
+            }
+
+            // ===== Fallback: ローカル catalog.json にも書き込む =====
+            WriteCatalogJsonFallback(avatarNames, contributor);
+
+            var msg = supabaseOk
+                ? $"Supabaseへ送信完了！\n画像: {uploadedImages}/{totalImages}枚\nアバター: {avatarNames.Count}体"
+                : $"Supabase送信で一部エラーあり（ローカル保存済み）\n画像: {uploadedImages}/{totalImages}枚";
+            uploadStatus = supabaseOk ? "OK: " + msg : "WARN: " + msg;
+            Debug.Log($"[撮影ツール] {msg}");
+            EditorUtility.DisplayDialog("送信完了", msg, "OK");
+        }
+
+        // ===== Supabase シリアライズ用クラス =====
+
+        [System.Serializable] class SupabaseAvatar
+        {
+            public string id = "", name = "", booth_url = "", thumbnail_url = "";
+        }
+
+        [System.Serializable] class SupabaseOutfit
+        {
+            public string avatar_id = "", outfit_id = "", name = "", booth_url = "", genre = "";
+            public List<string> contributors = new List<string>();
+        }
+
+        [System.Serializable] class SupabaseOutfitResponse
+        {
+            public string avatar_id = "", outfit_id = "";
+            public List<string> contributors = new List<string>();
+        }
+
+        [System.Serializable] class SupabaseOutfitResponseArray
+        {
+            public List<SupabaseOutfitResponse> items = new List<SupabaseOutfitResponse>();
+        }
+
+        // ===== Supabase Storage アップロード =====
+
+        /// <summary>
+        /// PNGバイト列をSupabase Storageにアップロード（upsert）する。
+        /// 成功時null、失敗時エラーメッセージを返す。
+        /// </summary>
+        string UploadToStorage(string storagePath, byte[] imageBytes)
+        {
+            var url = $"{SUPABASE_URL}/storage/v1/object/fitting-room/{storagePath}";
+            var req = UnityWebRequest.Put(url, imageBytes);
+            req.SetRequestHeader("apikey", SUPABASE_ANON_KEY);
+            req.SetRequestHeader("Authorization", $"Bearer {SUPABASE_ANON_KEY}");
+            req.SetRequestHeader("Content-Type", "image/png");
+            req.SetRequestHeader("x-upsert", "true");
+
+            req.SendWebRequest();
+            while (!req.isDone) { } // Editor context, blocking is OK
+
+            if (req.result != UnityWebRequest.Result.Success)
+                return $"{req.responseCode} {req.error} - {req.downloadHandler?.text}";
+
+            req.Dispose();
+            return null;
+        }
+
+        // ===== Supabase REST: Upsert行 =====
+
+        /// <summary>
+        /// Supabase REST APIで行をupsertする。
+        /// 成功時null、失敗時エラーメッセージを返す。
+        /// </summary>
+        string UpsertRow(string table, string jsonBody)
+        {
+            var url = $"{SUPABASE_URL}/rest/v1/{table}";
+            var req = new UnityWebRequest(url, "POST");
+            var bodyBytes = Encoding.UTF8.GetBytes(jsonBody);
+            req.uploadHandler = new UploadHandlerRaw(bodyBytes);
+            req.downloadHandler = new DownloadHandlerBuffer();
+            req.SetRequestHeader("apikey", SUPABASE_ANON_KEY);
+            req.SetRequestHeader("Authorization", $"Bearer {SUPABASE_ANON_KEY}");
+            req.SetRequestHeader("Content-Type", "application/json");
+            req.SetRequestHeader("Prefer", "resolution=merge-duplicates");
+
+            req.SendWebRequest();
+            while (!req.isDone) { } // Editor context, blocking is OK
+
+            if (req.result != UnityWebRequest.Result.Success)
+                return $"{req.responseCode} {req.error} - {req.downloadHandler?.text}";
+
+            req.Dispose();
+            return null;
+        }
+
+        // ===== Supabase REST: 既存contributors取得 =====
+
+        /// <summary>
+        /// 既存の衣装レコードからcontributorsリストを取得する。
+        /// レコードが無い場合は空リストを返す。
+        /// </summary>
+        List<string> FetchExistingContributors(string avatarId, string outfitId)
+        {
+            var url = $"{SUPABASE_URL}/rest/v1/fitting_outfits?avatar_id=eq.{avatarId}&outfit_id=eq.{outfitId}&select=contributors";
+            var req = UnityWebRequest.Get(url);
+            req.SetRequestHeader("apikey", SUPABASE_ANON_KEY);
+            req.SetRequestHeader("Authorization", $"Bearer {SUPABASE_ANON_KEY}");
+
+            req.SendWebRequest();
+            while (!req.isDone) { } // Editor context, blocking is OK
+
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning($"[Supabase] contributors取得失敗: {req.error}");
+                req.Dispose();
+                return new List<string>();
+            }
+
+            var responseText = req.downloadHandler.text;
+            req.Dispose();
+
+            // Response is a JSON array like [{"contributors":["Alice","Bob"]}]
+            // JsonUtility doesn't support top-level arrays, so we wrap it
+            try
+            {
+                var wrapped = "{\"items\":" + responseText + "}";
+                var parsed = JsonUtility.FromJson<SupabaseOutfitResponseArray>(wrapped);
+                if (parsed.items != null && parsed.items.Count > 0 && parsed.items[0].contributors != null)
+                    return new List<string>(parsed.items[0].contributors);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[Supabase] contributors解析失敗: {e.Message}");
+            }
+
+            return new List<string>();
+        }
+
+        // ===== ローカル catalog.json 書き込み（フォールバック） =====
+
+        void WriteCatalogJsonFallback(List<string> avatarNames, string contributor)
         {
             var catalogPath = Path.Combine(Path.GetDirectoryName(outputFolder), "data", "catalog.json");
             var catalogDir = Path.GetDirectoryName(catalogPath);
@@ -682,8 +942,6 @@ namespace AvatarFittingRoom
             {
                 catalog = new CatalogRoot();
             }
-
-            string contributor = !string.IsNullOrWhiteSpace(contributorName) ? contributorName.Trim() : "匿名";
 
             foreach (var avName in avatarNames)
             {
@@ -707,9 +965,9 @@ namespace AvatarFittingRoom
                     outfit.name = label;
                     outfit.boothUrl = uploadOutfitUrls.ContainsKey(label) ? uploadOutfitUrls[label] : "";
                     outfit.thumbnailUrl = $"/thumbnails/outfits/{outfitId}.jpg";
-                    outfit.contributor = contributor;
+                    if (!outfit.contributors.Contains(contributor))
+                        outfit.contributors.Add(contributor);
 
-                    // メタからジャンル取得
                     var metaPath = Path.Combine(outputFolder, avatarId, "meta.json");
                     if (File.Exists(metaPath))
                     {
@@ -725,11 +983,6 @@ namespace AvatarFittingRoom
             }
 
             File.WriteAllText(catalogPath, JsonUtility.ToJson(catalog, true));
-
-            var msg = $"カタログ登録完了！\nアバター: {avatarNames.Count}体\n衣装: {catalog.avatars.Sum(a => a.outfits.Count)}着";
-            uploadStatus = "OK: " + msg;
-            Debug.Log($"[撮影ツール] {msg}");
-            EditorUtility.DisplayDialog("送信完了", msg, "OK");
         }
 
         // ========== ユーティリティ ==========
