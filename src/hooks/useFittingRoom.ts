@@ -18,7 +18,7 @@ export function useFittingRoom(catalog: Catalog) {
     : null;
 
   const filteredOutfits = useMemo(() => {
-    let outfits = avatar.outfits;
+    let outfits = avatar.outfits.filter((o) => !o.hidden);
 
     if (!showAllOutfits && avatar.supportedOutfitIds) {
       outfits = outfits.filter((o) => avatar.supportedOutfitIds!.includes(o.id));

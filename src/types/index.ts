@@ -14,6 +14,7 @@ export interface Outfit {
   genre: OutfitGenre;
   thumbnailUrl: string;
   contributors?: string[]; // データ提供者リスト（最初の人がメイン表示）
+  hidden?: boolean; // 管理者が非表示にした場合true
 }
 
 export interface Avatar {
