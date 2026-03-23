@@ -13,6 +13,7 @@ export interface Outfit {
   price: string;
   genre: OutfitGenre;
   thumbnailUrl: string;
+  contributor?: string; // データ提供者（匿名の場合は未設定 or "匿名"）
 }
 
 export interface Avatar {

@@ -51,6 +51,11 @@ export function OutfitCard({ outfit, isSelected, onSelect }: Props) {
       <div className="p-2">
         <p className="text-xs font-medium text-gray-600 leading-tight line-clamp-2">{outfit.name}</p>
         <p className="text-[10px] text-pink-400 font-medium mt-0.5">{outfit.price}</p>
+        {outfit.contributor && (
+          <p className="text-[9px] text-gray-400 mt-0.5">
+            提供: {outfit.contributor}
+          </p>
+        )}
       </div>
     </button>
   );

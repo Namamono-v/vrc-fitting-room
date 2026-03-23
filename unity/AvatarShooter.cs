@@ -54,6 +54,7 @@ namespace AvatarFittingRoom
         string outfitUrl = "";
         int selectedGenre = 0;
         string customGenre = "";
+        string contributorName = ""; // データ提供者名（空 = 匿名）
         Vector2 scrollPos;
         Vector2 previewScrollPos;
 
@@ -247,6 +248,15 @@ namespace AvatarFittingRoom
             EditorGUILayout.EndHorizontal();
             if (string.IsNullOrWhiteSpace(outfitUrl))
                 EditorGUILayout.HelpBox("空欄なら素体として撮影します", MessageType.None);
+
+            // ===== 提供者名 =====
+            EditorGUILayout.Space(3);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("提供者名", GUILayout.Width(80));
+            contributorName = EditorGUILayout.TextField(contributorName);
+            EditorGUILayout.EndHorizontal();
+            if (string.IsNullOrWhiteSpace(contributorName))
+                EditorGUILayout.HelpBox("空欄なら「匿名」として登録されます", MessageType.None);
 
             // ===== ジャンル =====
             EditorGUILayout.Space(3);
@@ -1166,10 +1176,15 @@ namespace AvatarFittingRoom
                 ? GENRES[selectedGenre]
                 : (!string.IsNullOrWhiteSpace(customGenre) ? customGenre.Trim() : "その他");
 
+            // 提供者名
+            string contributor = !string.IsNullOrWhiteSpace(contributorName)
+                ? contributorName.Trim() : "匿名";
+
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("{");
             sb.AppendLine($"  \"avatarName\": \"{EscapeJson(avatarName)}\",");
             sb.AppendLine($"  \"avatarBoothUrl\": \"{EscapeJson(avatarBoothUrl)}\",");
+            sb.AppendLine($"  \"contributor\": \"{EscapeJson(contributor)}\",");
             sb.AppendLine("  \"shots\": {");
             int idx = 0;
             foreach (var kv in existingShots)
