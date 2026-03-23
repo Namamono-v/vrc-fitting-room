@@ -23,10 +23,13 @@ function mergeCatalogs(base: Catalog, supabaseAvatars: Avatar[]): Catalog {
   for (const sbAvatar of supabaseAvatars) {
     const existing = avatarMap.get(sbAvatar.id);
     if (existing) {
-      // 既存アバター: Supabase の outfits で新規分を追加
-      const existingOutfitIds = new Set(existing.outfits.map((o) => o.id));
+      // 既存アバター: Supabase の outfits でマージ（同じIDは上書き、新規は追加）
       for (const outfit of sbAvatar.outfits) {
-        if (!existingOutfitIds.has(outfit.id)) {
+        const idx = existing.outfits.findIndex((o) => o.id === outfit.id);
+        if (idx >= 0) {
+          // 既存衣装: Supabaseデータで上書き（contributors等を反映）
+          existing.outfits[idx] = { ...existing.outfits[idx], ...outfit };
+        } else {
           existing.outfits.push(outfit);
         }
       }
