@@ -31,14 +31,14 @@ interface FittingAvatarRow {
 }
 
 interface FittingOutfitRow {
-  id: string;
   avatar_id: string;
+  outfit_id: string;
   name: string;
   booth_url: string;
   creator?: string | null;
   price?: string | null;
   genre?: string | null;
-  thumbnail_url: string;
+  thumbnail_url?: string | null;
   contributors?: string[] | null;
   hidden?: boolean | null;
 }
@@ -73,13 +73,13 @@ export async function fetchCatalogFromSupabase(): Promise<{
     const outfitsByAvatar = new Map<string, Outfit[]>();
     for (const row of outfitRows) {
       const outfit: Outfit = {
-        id: row.id,
+        id: row.outfit_id,
         name: row.name,
         boothUrl: row.booth_url,
         creator: row.creator ?? "",
         price: row.price ?? "",
         genre: (row.genre as OutfitGenre) ?? "カジュアル",
-        thumbnailUrl: row.thumbnail_url,
+        thumbnailUrl: row.thumbnail_url ?? `/thumbnails/outfits/${row.outfit_id}.jpg`,
         contributors: row.contributors ?? undefined,
         hidden: row.hidden ?? undefined,
       };
