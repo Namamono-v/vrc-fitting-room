@@ -889,7 +889,7 @@ namespace AvatarFittingRoom
         /// </summary>
         List<string> FetchExistingContributors(string avatarId, string outfitId)
         {
-            var url = $"{SUPABASE_URL}/rest/v1/fitting_outfits?avatar_id=eq.{avatarId}&outfit_id=eq.{outfitId}&select=contributors";
+            var url = $"{SUPABASE_URL}/rest/v1/fitting_outfits?avatar_id=eq.{UnityWebRequest.EscapeURL(avatarId)}&outfit_id=eq.{UnityWebRequest.EscapeURL(outfitId)}&select=contributors";
             var req = UnityWebRequest.Get(url);
             req.SetRequestHeader("apikey", SUPABASE_ANON_KEY);
             req.SetRequestHeader("Authorization", $"Bearer {SUPABASE_ANON_KEY}");
