@@ -17,7 +17,6 @@ interface CatalogJson {
       price?: string;
       contributors?: string[];
     }>;
-    supportedOutfitIds?: string[];
   }>;
 }
 
@@ -30,7 +29,7 @@ try {
 
 /**
  * ハードコードデータと catalog.json をマージ
- * - 既存アバターの場合: JSON の outfits から新規分を追加、supportedOutfitIds を更新
+ * - 既存アバターの場合: JSON の outfits から新規分を追加
  * - 新規アバターの場合: JSON のデータをそのまま追加
  */
 function mergeCatalog(base: Catalog, json: CatalogJson): Catalog {
@@ -60,10 +59,6 @@ function mergeCatalog(base: Catalog, json: CatalogJson): Catalog {
           }
         }
       }
-      // supportedOutfitIds を JSON から更新（JSON にあれば上書き）
-      if (jsonAvatar.supportedOutfitIds) {
-        existing.supportedOutfitIds = jsonAvatar.supportedOutfitIds;
-      }
     } else {
       // 新規アバター: JSON データから Avatar を生成
       const newAvatar: Avatar = {
@@ -81,7 +76,6 @@ function mergeCatalog(base: Catalog, json: CatalogJson): Catalog {
           thumbnailUrl: o.thumbnailUrl,
           contributors: o.contributors,
         })),
-        supportedOutfitIds: jsonAvatar.supportedOutfitIds,
       };
       mergedAvatars.push(newAvatar);
     }
@@ -90,52 +84,34 @@ function mergeCatalog(base: Catalog, json: CatalogJson): Catalog {
   return { ...base, avatars: mergedAvatars };
 }
 
-const sharedOutfits: Outfit[] = [
-  {
-    id: "和服",
-    name: "甚平セット",
-    boothUrl: "https://antnestin.booth.pm/items/3333146",
-    creator: "antnestin",
-    price: "¥1,000",
-    genre: "和服",
-    thumbnailUrl: "/thumbnails/outfits/3333146.jpg",
-  },
-];
-
 const baseCatalog: Catalog = {
   poses: [
-    { id: "arms-crossed", label: "腕組み" },
-    { id: "peace", label: "ピース" },
     { id: "shy", label: "照れ" },
     { id: "hip-hand", label: "腰に手" },
     { id: "cool-crossed", label: "クール腕組み" },
     { id: "relax", label: "リラックス" },
     { id: "point", label: "指差し" },
-    { id: "seiza", label: "正座" },
-    { id: "finger-up", label: "指立て" },
-    { id: "guts", label: "ガッツ" },
+    { id: "pose-e", label: "ポーズE" },
+    { id: "pose-f", label: "ポーズF" },
+    { id: "pose-g", label: "ポーズG" },
+    { id: "pose-h", label: "ポーズH" },
+    { id: "pose-i", label: "ポーズI" },
   ],
   genres: [
     { id: "all" as OutfitGenre, label: "すべて" },
     { id: "和服", label: "和服" },
   ],
-  avatars: [
-    {
-      id: "siniri_body_ver2.00",
-      name: "新入り",
-      boothUrl: "https://pkj-shop.booth.pm/items/4509553",
-      thumbnailUrl: "/thumbnails/avatars/4509553.jpg",
-      outfits: sharedOutfits,
-      supportedOutfitIds: ["和服"],
-    },
-  ],
+  avatars: [],
 };
 
 // ハードコードデータと catalog.json をマージして最終カタログを生成
 export const catalog: Catalog = mergeCatalog(baseCatalog, catalogJson);
 
+/** Supabase Storage の公開URLベース */
+const STORAGE_BASE = "https://ksotijmuhednzfiahhoo.supabase.co/storage/v1/object/public/fitting-room";
+
 export function getBasePath(avatarId: string): string {
-  return `/renders/${avatarId}/素体.png`;
+  return `${STORAGE_BASE}/renders/${avatarId}/素体`;
 }
 
 /** boothUrl から BOOTH商品IDを抽出 */
@@ -164,11 +140,11 @@ function getOutfitBoothIdMap(): Record<string, string> {
 export function getOutfitPath(avatarId: string, outfitId: string): string {
   const boothId = getOutfitBoothIdMap()[outfitId];
   const fileBase = boothId ?? outfitId;
-  return `/renders/${avatarId}/${fileBase}.png`;
+  return `${STORAGE_BASE}/renders/${avatarId}/${fileBase}`;
 }
 
 export function getOutfitPosePath(avatarId: string, outfitId: string, poseId: string): string {
   const boothId = getOutfitBoothIdMap()[outfitId];
   const fileBase = boothId ?? outfitId;
-  return `/renders/${avatarId}/${fileBase}_${poseId}.png`;
+  return `${STORAGE_BASE}/renders/${avatarId}/${fileBase}_${poseId}`;
 }
